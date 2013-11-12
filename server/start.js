@@ -15,7 +15,7 @@ var params = {
 	staticpath: '../client'
 }
 
-app.listen(8080, '0.0.0.0');
+app.listen(1308, '0.0.0.0');
 
 function handler (request, response) {
 
@@ -130,7 +130,9 @@ io.sockets.on('connection', function (socket) {
 
 
 	var ippart = socket.handshake.address.address.split('.'),
-		local = _.include([127, 192, 10], ippart[0]*1);
+		local = _.include([127, 10], ippart[0]*1);
+
+	console.log(ippart, local)
 
 	//проверка userkey на валидность
 	socket.on('c:checkuserkey', function (request) {
@@ -144,6 +146,7 @@ io.sockets.on('connection', function (socket) {
 				security.accesslist[socket.id] = 1;
 				if ( local )
 				{
+					console.log('1')
 					security.genEncryptKey(function (encryptkey) {
 						
 						//обновляем ключ шифрования
@@ -156,8 +159,9 @@ io.sockets.on('connection', function (socket) {
 				}
 				else
 				{
+					console.log('2')
 					//используем старый ключ шифрования для сокеса
-					security[socket.id].encryptkey = security.sessions[request.userkey+fingerprint];
+					security.encryptkeys[socket.id] = security.sessions[request.userkey+fingerprint];
 
 					socket.emit('s:checkuserkey', {res:1});
 				}
@@ -166,6 +170,7 @@ io.sockets.on('connection', function (socket) {
 			{
 				if(local)
 				{
+					console.log('3')
 					security.genEncryptKey(function (encryptkey) {
 						//временный ключ шифрования для сессии
 						security.encryptkeys[socket.id] = encryptkey;
@@ -175,6 +180,7 @@ io.sockets.on('connection', function (socket) {
 				}
 				else
 				{
+					console.log('4')
 					socket.emit('s:checkuserkey', {res:0});
 				}
 			}

@@ -71,10 +71,11 @@
                     }
                     else if(response.res*1 === 0)
                     {
-                        $('#loginform').css('display', 'block');
-                        $('#chat').css('display', 'none');
                         if(response.encryptkey)
                         {
+                            $('#loginform').css('display', 'block');
+                            $('#chat').css('display', 'none');
+
                             localStorage['encryptkey'] = response.encryptkey;
 
                             $('#loginform').css('display', 'block');
