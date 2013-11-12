@@ -1,0 +1,154 @@
+<html>
+    <head>
+        <script src="/static/lib/jquery.js"></script>
+        <script src="/socket.io/socket.io.js"></script>
+        <script type="text/javascript" src="/static/lib/cryptojs/aes.js"></script>
+        <script type="text/javascript" src="/static/lib/cryptojs/jsonformatter.js"></script>
+    </head>
+    <body>
+        <div id="chat" style="width:200px;display:none;">
+            <textarea readonly style="width:100%;height:250px;;"></textarea>
+            <input type="text" name="message" style="display:block;width:100%;"/>
+            <button style="display:block;width:100%;">Send</button>
+        </div>
+        <div id="loginform" style="width:300px;display:none;">
+            Login:
+            <input class="login" type="text" name="login" style="width:100%;" />
+            Password:
+            <input class="pasw" type="password" name="pasw" style="width:100%;"/>
+            <div class="accept" style="width:100%;heigth:30px;cursor:pointer;background-color:#584;color:white;">
+                Accept
+            </div>
+        </div>
+        <script type="text/javascript" >
+
+            $.get('getip', function (response) {
+                
+                var socket = io.connect(response.split(':')[0]);
+
+                function userinfoharvester () {
+
+                    var userinfo = {}
+                    //параметры экрана
+                    {
+                        userinfo.screen = {}
+                        for(var prop in screen) {
+                            if (navigator[prop] instanceof Object || screen[prop]==='') continue
+                            // document.writeln(prop+": "+screen[prop])
+                            userinfo.screen[prop] = screen[prop];
+                        }
+                    }
+
+                    //плагины
+                    {
+                        userinfo.plugins = [];
+
+                        var plugins_len = navigator.plugins.length;
+
+                        for(var i = 0; i < plugins_len; i++) {
+                            userinfo.plugins.push(navigator.plugins[i].name);
+                        };
+                    }
+
+                    return userinfo;
+                }
+
+                var userinfo = userinfoharvester();
+
+
+                socket.on('s:checkuserkey', function (response) {
+
+                    if(response.res*1 === 1)
+                    {
+                        $('#chat').css('display', 'block');
+                        $('#loginform').css('display', 'none');
+                        
+                        if(response.encryptkey)
+                        {
+                            localStorage['encryptkey'] = response.encryptkey;
+                        }
+
+                    }
+                    else if(response.res*1 === 0)
+                    {
+                        $('#loginform').css('display', 'block');
+                        $('#chat').css('display', 'none');
+                        if(response.encryptkey)
+                        {
+                            localStorage['encryptkey'] = response.encryptkey;
+
+                            $('#loginform').css('display', 'block');
+
+                            $('#loginform').children('.accept').bind('click', function () {
+
+                                var login = $(this).siblings('.login').val()
+                                    password = $(this).siblings('.pasw').val();
+
+                                var request = {login:login, password:password, userinfo:userinfo};
+                                
+
+                                //Params object
+                                var encrypted = CryptoJS.AES.encrypt(JSON.stringify(request), localStorage['encryptkey'], { format: JsonFormatter });
+
+                                // convert CipherParams object to json string for transmission
+                                var encrypted_json_str = encrypted.toString();
+
+                                socket.emit('c:givemeuserkey', encrypted_json_str);
+
+                            });
+
+                        }
+                    }
+                });
+
+                function checkuserkey ()
+                {
+                    // alert('!')
+                    socket.emit('c:checkuserkey', {userkey:localStorage['userkey'], userinfo:userinfo});
+                }
+
+                checkuserkey();
+
+                socket.on('s:givemeuserkey', function (response) {
+
+                    // alert(response.res)
+                    if(response.res*1 === 1)
+                    {
+                        if(response.userkey)
+                        {
+                            localStorage['userkey'] = response.userkey;
+                            localStorage['username'] = $('#loginform').children('.login').val();
+                        }
+                        checkuserkey();
+                    }
+                    else
+                    {
+                        alert('error')
+                    }
+                });
+
+
+                socket.on('message', function (data) {
+
+                    $('textarea').prepend(data+'\n');
+                });
+
+
+                var chat = $('#chat'),
+                    inpfield = $('input');
+
+                chat.children('button').bind('click', function () {
+
+                    var encrypted = CryptoJS.AES.encrypt(localStorage['username']+': '+inpfield.val(), localStorage['encryptkey'], { format: JsonFormatter });
+
+                    var encrypted_json_str = encrypted.toString();
+
+                    socket.emit('message', encrypted_json_str);
+                    inpfield.val('');
+                });
+
+            });
+
+        </script>
+    </body>
+</html>
